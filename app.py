@@ -43,19 +43,33 @@ def clean_data(df, category, mode):
     mapping = MAPPINGS.get(mode, MAPPINGS['google'])
     extracted = pd.DataFrame()
     
-    # 必要な列の抽出と名前変更
+    # 必要な列の抽出
     for col_key, new_name in mapping.items():
         extracted[new_name] = df[col_key] if col_key in df.columns else ""
     
-    # 全体的な空白削除
+    # 空白削除・小文字統一
     extracted = extracted.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
-    
-    # メールアドレスの小文字統一
     if 'メールアドレス' in extracted.columns:
         extracted['メールアドレス'] = extracted['メールアドレス'].str.lower()
-    
+
+    # 組み合わせ項目の作成
+    extracted['住所結合'] = (extracted['都道府県'].fillna('') + extracted['市区町村'].fillna(''))
+    extracted['氏名結合'] = (extracted['氏名(姓)'].fillna('') + ' ' + extracted['氏名(名)'].fillna('')).str.strip()
     extracted['区分'] = category
-    return extracted
+
+    # ラベルやさん用の列定義
+    output_columns = [
+        '郵便番号', '住所結合', '番地', '会社名', '役職', '氏名結合', 
+        '電話番号', 'メールアドレス', '区分', '氏名(姓)', '氏名(名)', 
+        '都道府県', '市区町村'
+    ]
+    
+    # 不足列の補完
+    for col in output_columns:
+        if col not in extracted.columns:
+            extracted[col] = ""
+            
+    return extracted[output_columns]
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
